@@ -15,12 +15,41 @@ input{width:100%;padding:13px;border-radius:14px;border:1px solid #3a4262;backgr
 .hidden{display:none!important}.center{text-align:center}.muted{color:var(--muted)}.code{font-size:34px;letter-spacing:8px;font-weight:900;text-align:center;margin:12px 0;color:#fff}
 .answers{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:22px}.answer{min-height:105px;font-size:30px;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
 .answer span{font-size:14px}.answer.a{background:#e94d6d}.answer.b{background:#3f83f8}.answer.c{background:#16a37b}.answer.d{background:#e6a51f}
+.answer.correct{outline:4px solid #fff;filter:brightness(1.15)}
+.answer.wrong{opacity:.4}
+.answer:disabled{cursor:default}
 .avatarGrid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:6px}
 .avatarBtn{background:#242a47;border-radius:14px;font-size:28px;padding:10px 0;text-align:center;cursor:pointer;border:3px solid transparent}
 .avatarBtn.selected{border-color:var(--accent);background:#303760}
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:14px;margin:26px 0 10px;flex-wrap:wrap}
+.podium-col{display:flex;flex-direction:column;align-items:center;gap:6px;width:110px}
+.podium-avatar{font-size:34px}
+.podium-name{font-weight:800;text-align:center}
+.podium-pts{color:var(--muted);font-size:13px}
+.podium-bar{width:100%;border-radius:14px 14px 0 0;display:flex;align-items:flex-start;justify-content:center;padding-top:10px;font-size:26px}
+.podium-1 .podium-bar{height:140px;background:linear-gradient(180deg,#ffe27a,#e6a51f)}
+.podium-2 .podium-bar{height:100px;background:linear-gradient(180deg,#e8ecf7,#aab1cc)}
+.podium-3 .podium-bar{height:72px;background:linear-gradient(180deg,#e7b78a,#c07a42)}
+.confetti-layer{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:50}
+.confetti-piece{position:absolute;top:-30px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(110vh) rotate(360deg);opacity:.9}}
 .question{font-size:24px;font-weight:750;line-height:1.35}.progress{height:8px;background:#303752;border-radius:99px;overflow:hidden}.progress>i{display:block;height:100%;background:linear-gradient(90deg,#7c5cff,#20d6b5);width:0}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.players{display:grid;gap:9px}.player{display:flex;justify-content:space-between;padding:12px 14px;background:#11162a;border-radius:13px}
 .status{font-size:13px;color:#78e4c5}.notice{padding:12px 14px;border-radius:14px;background:#242a47;color:#dce1f6;margin:12px 0}
+.resultStage{position:relative;overflow:hidden;padding-top:24px;min-height:200px}
+.confetti{position:absolute;inset:0;pointer-events:none}
+.confettiPiece{position:absolute;top:-16px;width:8px;height:14px;border-radius:2px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(420px) rotate(360deg);opacity:0}}
+.podium{position:relative;display:flex;align-items:flex-end;justify-content:center;gap:14px;margin:10px 0 6px}
+.podiumSpot{background:#242a47;border-radius:16px 16px 0 0;text-align:center;padding:16px 10px 10px;width:104px}
+.podiumSpot.p1{height:150px;order:2;background:linear-gradient(180deg,#7c5cff,#4b3aa8);position:relative}
+.podiumSpot.p2{height:112px;order:1}
+.podiumSpot.p3{height:90px;order:3}
+.podiumSpot .av{font-size:34px}
+.podiumSpot .pname{font-weight:800;margin:6px 0 2px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.podiumSpot .pscore{color:#78e4c5;font-weight:900}
+.crownWinner{position:absolute;top:-32px;left:50%;transform:translateX(-50%);font-size:28px;animation:bounce 1s infinite}
+@keyframes bounce{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-8px)}}
 ol{padding-left:22px}.small{font-size:12px}
 @media(max-width:600px){.app{padding:12px}.card{padding:18px;border-radius:19px}.answers{gap:10px}.answer{min-height:90px}.question{font-size:20px}}
 </style>
@@ -69,7 +98,7 @@ ol{padding-left:22px}.small{font-size:12px}
     <h3>Joueurs</h3><div id="players" class="players"></div>
     <div id="hostControls" class="hidden">
       <hr style="border-color:#303753;border-width:1px 0 0;margin:20px 0">
-      <div class="row"><button onclick="startQuiz()">🚀 Démarrer le quiz</button><button class="secondary" onclick="nextQuestion()">Question suivante</button></div>
+      <div class="row"><button onclick="startQuiz()">🚀 Démarrer le quiz</button><button class="secondary" onclick="nextQuestion()">⏭ Passer la question</button></div>
     </div>
   </section>
 
@@ -82,8 +111,13 @@ ol{padding-left:22px}.small{font-size:12px}
   </section>
 
   <section id="result" class="card hidden">
-    <h2>🏆 Résultats</h2><div id="ranking" class="players"></div>
-    <br><button onclick="location.reload()">Nouvelle partie</button>
+    <h2 class="center">🏆 Résultats</h2>
+    <div class="resultStage">
+      <div id="confetti" class="confetti"></div>
+      <div id="podium" class="podium"></div>
+    </div>
+    <div id="rankingRest" class="players"></div>
+    <br><button onclick="location.reload()">🔁 Nouvelle partie</button>
   </section>
 </div>
 
@@ -110,6 +144,7 @@ const AVATARS=["🐱","🐶","🦊","🐻","🐼","🐨","🦁","🐯","🐸","�
 let ws=null, roomId=null, role=null, clientId=crypto.randomUUID(), hostId=null;
 let players={}, currentQuestion=0, quizStarted=false, timerInterval=null, deadline=0, localQuestions=[];
 let myName="", myAvatar=AVATARS[0];
+let answeredThisQuestion=new Set(), questionAdvanced=false;
 
 function $(id){return document.getElementById(id)}
 function show(id){$(id).classList.remove("hidden")} function hide(id){$(id).classList.add("hidden")}
@@ -241,24 +276,51 @@ function startQuiz(){
  showQuestion(localQuestions[0]);show("quiz");currentQuestion=0;startTimer();
 }
 function showQuestion(q){
- $("qCounter").textContent=`Question ${currentQuestion+1}/10`;
+ answeredThisQuestion=new Set();questionAdvanced=false;
+ $("qCounter").textContent=`Question ${currentQuestion+1}/${localQuestions.length}`;
  $("question").textContent=q.q;$("feedback").classList.add("hidden");
  const box=$("answers");box.innerHTML="";
  q.a.forEach((txt,i)=>{const b=document.createElement("button");b.className="answer "+["a","b","c","d"][i];b.innerHTML=`${SYMBOLS[i]}<span>${txt}</span>`;b.onclick=()=>answer(i);box.appendChild(b)});
- $("bar").style.width=((currentQuestion)/10*100)+"%";startTimer();
+ $("bar").style.width=((currentQuestion)/localQuestions.length*100)+"%";startTimer();
 }
 function answer(i){
  if(!quizStarted && role==="player")quizStarted=true;
- clearInterval(timerInterval);
- if(role==="host"){scoreAnswer(clientId,i);renderAnswerResult({correct:i===localQuestions[currentQuestion].c,points:i===localQuestions[currentQuestion].c?100:0});broadcastScores();}
- else p2pToHost({type:"answer",id:clientId,index:i});
  document.querySelectorAll(".answer").forEach(x=>x.disabled=true);
+ if(role==="host"){
+   scoreAnswer(clientId,i);
+   answeredThisQuestion.add(clientId);
+   renderAnswerResult({correct:i===localQuestions[currentQuestion].c,points:i===localQuestions[currentQuestion].c?100:0});
+   broadcastScores();
+   checkAllAnswered();
+ } else p2pToHost({type:"answer",id:clientId,index:i});
 }
 function startTimer(){
  deadline=Date.now()+15000;clearInterval(timerInterval);
- timerInterval=setInterval(()=>{let s=Math.max(0,Math.ceil((deadline-Date.now())/1000));$("timer").textContent="⏱ "+s+"s";if(!s){clearInterval(timerInterval);document.querySelectorAll(".answer").forEach(x=>x.disabled=true)}},200);
+ timerInterval=setInterval(()=>{
+   let s=Math.max(0,Math.ceil((deadline-Date.now())/1000));
+   $("timer").textContent="⏱ "+s+"s";
+   if(!s){
+     clearInterval(timerInterval);
+     document.querySelectorAll(".answer").forEach(x=>x.disabled=true);
+     if(role==="host")tryAdvance();
+   }
+ },200);
 }
-function renderAnswerResult(m){$("feedback").classList.remove("hidden");$("feedback").textContent=m.correct?"✅ Bonne réponse ! +"+m.points+" points":"❌ Mauvaise réponse."}
+function checkAllAnswered(){
+ if(role!=="host")return;
+ const total=Math.max(Object.keys(players).length,1);
+ if(answeredThisQuestion.size>=total)tryAdvance();
+}
+function tryAdvance(){
+ if(role!=="host"||questionAdvanced)return;
+ questionAdvanced=true;
+ clearInterval(timerInterval);
+ setTimeout(()=>nextQuestion(),1200);
+}
+function renderAnswerResult(m){
+ $("feedback").classList.remove("hidden");
+ $("feedback").innerHTML=(m.correct?"✅ Bonne réponse ! +"+m.points+" points":"❌ Mauvaise réponse.")+"<br><span class='muted small'>⏳ En attente des autres joueurs…</span>";
+}
 function nextQuestion(){
  if(role!=="host")return;
  currentQuestion++;
@@ -270,16 +332,47 @@ function scoreAnswer(id,i){
  const p=players[id]||{id,name:"Joueur",score:0}; if(i===localQuestions[currentQuestion].c)p.score=(p.score||0)+100;players[id]=p;updatePlayers();
 }
 function broadcastScores(){send({type:"scoreUpdate",players})}
+
+function showResults(ps){
+ hide("quiz");show("result");
+ const ranked=Object.values(ps).sort((a,b)=>(b.score||0)-(a.score||0));
+ renderPodium(ranked);renderConfetti();
+ const rest=ranked.slice(3);
+ $("rankingRest").innerHTML=rest.map((p,i)=>`<div class="player"><span>${i+4}. ${p.avatar||"🎮"} ${p.name}</span><b>${p.score||0} pts</b></div>`).join("");
+}
+function renderPodium(ranked){
+ const el=$("podium");el.innerHTML="";
+ [{p:ranked[0],cls:"p1",medal:"🥇"},{p:ranked[1],cls:"p2",medal:"🥈"},{p:ranked[2],cls:"p3",medal:"🥉"}].forEach(c=>{
+   if(!c.p)return;
+   const d=document.createElement("div");
+   d.className="podiumSpot "+c.cls;
+   d.innerHTML=(c.cls==="p1"?'<div class="crownWinner">👑</div>':"")+
+     `<div class="av">${c.p.avatar||"🎮"}</div><div class="pname">${c.medal} ${c.p.name}</div><div class="pscore">${c.p.score||0} pts</div>`;
+   el.appendChild(d);
+ });
+}
+function renderConfetti(){
+ const el=$("confetti");el.innerHTML="";
+ const colors=["#7c5cff","#20d6b5","#e94d6d","#e6a51f","#3f83f8"];
+ for(let i=0;i<40;i++){
+   const s=document.createElement("div");
+   s.className="confettiPiece";
+   s.style.left=(Math.random()*100)+"%";
+   s.style.background=colors[i%colors.length];
+   s.style.animationDuration=(1.6+Math.random()*1.2)+"s";
+   s.style.animationDelay=(Math.random()*0.6)+"s";
+   el.appendChild(s);
+ }
+}
 function handleP2P(m,peer){
  if(role==="host"&&m.type==="answer"){
    const q=localQuestions[currentQuestion],ok=m.index===q.c;scoreAnswer(m.id,m.index);
+   answeredThisQuestion.add(m.id);
    p2pTo(peer,{type:"answerResult",correct:ok,points:ok?100:0});
    broadcastScores();
+   checkAllAnswered();
  }
  if(role==="player"&&m.type==="answerResult")renderAnswerResult(m);
-}
-function showResults(ps){
- hide("quiz");show("result");$("ranking").innerHTML=Object.values(ps).sort((a,b)=>(b.score||0)-(a.score||0)).map((p,i)=>`<div class="player"><span>${["🥇","🥈","🥉"][i]||"🏅"} ${p.avatar||"🎮"} ${p.name}</span><b>${p.score||0} pts</b></div>`).join("");
 }
 function leaveRoom(){try{ws?.close();Object.values(peerConns).forEach(p=>p.pc?.close())}catch{}location.reload()}
 </script>
