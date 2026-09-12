@@ -15,6 +15,9 @@ input{width:100%;padding:13px;border-radius:14px;border:1px solid #3a4262;backgr
 .hidden{display:none!important}.center{text-align:center}.muted{color:var(--muted)}.code{font-size:34px;letter-spacing:8px;font-weight:900;text-align:center;margin:12px 0;color:#fff}
 .answers{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:22px}.answer{min-height:105px;font-size:30px;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
 .answer span{font-size:14px}.answer.a{background:#e94d6d}.answer.b{background:#3f83f8}.answer.c{background:#16a37b}.answer.d{background:#e6a51f}
+.avatarGrid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:6px}
+.avatarBtn{background:#242a47;border-radius:14px;font-size:28px;padding:10px 0;text-align:center;cursor:pointer;border:3px solid transparent}
+.avatarBtn.selected{border-color:var(--accent);background:#303760}
 .question{font-size:24px;font-weight:750;line-height:1.35}.progress{height:8px;background:#303752;border-radius:99px;overflow:hidden}.progress>i{display:block;height:100%;background:linear-gradient(90deg,#7c5cff,#20d6b5);width:0}
 .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.players{display:grid;gap:9px}.player{display:flex;justify-content:space-between;padding:12px 14px;background:#11162a;border-radius:13px}
 .status{font-size:13px;color:#78e4c5}.notice{padding:12px 14px;border-radius:14px;background:#242a47;color:#dce1f6;margin:12px 0}
@@ -26,7 +29,20 @@ ol{padding-left:22px}.small{font-size:12px}
 <div class="app">
   <div class="top"><div class="brand">⚡ Biophysique Quiz</div><div class="badge">WebRTC • local / Internet</div></div>
 
-  <section id="home" class="card">
+  <section id="profile" class="card">
+    <h1>Ton profil</h1>
+    <p class="muted">Choisis un pseudo et un avatar avant de créer ou rejoindre une partie.</p>
+    <input id="profileName" maxlength="16" placeholder="Ton pseudo" style="margin-bottom:16px">
+    <div class="avatarGrid" id="avatarGrid"></div>
+    <br><button class="good" onclick="confirmProfile()">Continuer →</button>
+    <div id="profileError" class="notice hidden" style="background:#4a2130;color:#ffd7de"></div>
+  </section>
+
+  <section id="home" class="card hidden">
+    <div class="row" style="justify-content:space-between;margin-bottom:10px">
+      <div class="row" style="gap:8px"><span id="myAvatarDisplay" style="font-size:26px"></span><b id="myNameDisplay"></b></div>
+      <button class="secondary small" style="padding:8px 12px" onclick="show('profile');hide('home')">Changer</button>
+    </div>
     <h1>Quiz multijoueur</h1>
     <p class="muted">Crée une partie ou rejoins une partie avec un code. Les joueurs communiquent directement entre eux via WebRTC après la signalisation.</p>
     <div class="grid">
@@ -90,18 +106,58 @@ const QUESTIONS=[
  {q:"Pour un effet stochastique, selon le cours :",a:["La probabilité augmente avec la dose, mais pas la gravité.","La gravité augmente avec la dose après un seuil.","Il faut toujours dépasser une dose seuil.","Il s'agit uniquement d'une brûlure radiologique."],c:0}
 ];
 
-let ws=null, pc=null, roomId=null, role=null, clientId=crypto.randomUUID(), hostId=null;
+const AVATARS=["🐱","🐶","🦊","🐻","🐼","🐨","🦁","🐯","🐸","🐵","🦄","🐙","🐢","🦉","🐧","🦋","🐺","🐹"];
+let ws=null, roomId=null, role=null, clientId=crypto.randomUUID(), hostId=null;
 let players={}, currentQuestion=0, quizStarted=false, timerInterval=null, deadline=0, localQuestions=[];
+let myName="", myAvatar=AVATARS[0];
 
 function $(id){return document.getElementById(id)}
 function show(id){$(id).classList.remove("hidden")} function hide(id){$(id).classList.add("hidden")}
+
+function buildAvatarGrid(){
+  const grid=$("avatarGrid");grid.innerHTML="";
+  AVATARS.forEach(a=>{
+    const b=document.createElement("div");
+    b.className="avatarBtn"+(a===myAvatar?" selected":"");
+    b.textContent=a;
+    b.onclick=()=>{myAvatar=a;document.querySelectorAll(".avatarBtn").forEach(x=>x.classList.remove("selected"));b.classList.add("selected")};
+    grid.appendChild(b);
+  });
+}
+function confirmProfile(){
+  const name=$("profileName").value.trim();
+  if(!name){$("profileError").classList.remove("hidden");$("profileError").textContent="Entre un pseudo pour continuer.";return}
+  $("profileError").classList.add("hidden");
+  myName=name;
+  localStorage.setItem("quizProfileName",myName);
+  localStorage.setItem("quizProfileAvatar",myAvatar);
+  $("myAvatarDisplay").textContent=myAvatar;
+  $("myNameDisplay").textContent=myName;
+  hide("profile");show("home");
+}
+(function initProfile(){
+  const savedName=localStorage.getItem("quizProfileName");
+  const savedAvatar=localStorage.getItem("quizProfileAvatar");
+  if(savedAvatar)myAvatar=savedAvatar;
+  if(savedName)$("profileName").value=savedName;
+  buildAvatarGrid();
+})();
 function serverURL(){return (location.protocol==="https:"?"wss://":"ws://")+location.host}
 function send(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))}
 function setState(s){$("connectionState").textContent=s}
 
 function connect(){
+ if(location.protocol==="file:"){
+   alert("Cette page a été ouverte directement en double-cliquant sur le fichier (file://).\nIl faut la lancer via le serveur Node : démarre 'node server.js' puis ouvre http://localhost:8080");
+   setState("🔴 Erreur : ouvre la page via http://localhost:8080 (pas en double-cliquant sur le fichier)");
+   return;
+ }
  ws=new WebSocket(serverURL());
- ws.onopen=()=>setState("🟢 Connecté au serveur de signalisation");
+ const connTimeout=setTimeout(()=>{
+   if(ws.readyState!==1) setState("🔴 Impossible de joindre le serveur ("+serverURL()+"). Vérifie que 'node server.js' tourne bien et que tu utilises la bonne adresse/IP.");
+ },4000);
+ ws.onopen=()=>{clearTimeout(connTimeout);setState("🟢 Connecté au serveur de signalisation")};
+ ws.onerror=()=>{clearTimeout(connTimeout);setState("🔴 Erreur de connexion au serveur ("+serverURL()+"). Le serveur Node tourne-t-il ?")};
  ws.onclose=()=>setState("🔴 Serveur déconnecté");
  ws.onmessage=async e=>{
    const m=JSON.parse(e.data);
@@ -115,11 +171,18 @@ function connect(){
    if(m.type==="answerResult"){renderAnswerResult(m)}
    if(m.type==="nextQuestion"){currentQuestion=m.index;showQuestion(m.question)}
    if(m.type==="gameEnd"){showResults(m.players)}
+   if(m.type==="error"){setState("🔴 "+m.message);}
+   if(m.type==="hostLeft"){
+     clearInterval(timerInterval);
+     try{ws?.close();Object.values(peerConns).forEach(p=>p.pc?.close())}catch{}
+     alert("👑 L'hôte a quitté la partie. La partie est terminée.");
+     location.reload();
+   }
  };
 }
 
-function createRoom(){role="host";connect();waitForOpen(()=>send({type:"create",clientId}));}
-function joinRoom(){const c=$("joinCode").value.trim().toUpperCase();if(!c)return alert("Entre un code.");role="player";connect();waitForOpen(()=>send({type:"join",room:c,clientId,name:"Joueur "+clientId.slice(0,4)}));}
+function createRoom(){role="host";hide("home");show("room");$("roomTitle").textContent="Connexion…";setState("🟡 Connexion au serveur…");connect();waitForOpen(()=>send({type:"create",clientId,name:myName,avatar:myAvatar}));}
+function joinRoom(){const c=$("joinCode").value.trim().toUpperCase();if(!c)return alert("Entre un code.");role="player";hide("home");show("room");$("roomTitle").textContent="Connexion…";setState("🟡 Connexion au serveur…");connect();waitForOpen(()=>send({type:"join",room:c,clientId,name:myName,avatar:myAvatar}));}
 function waitForOpen(fn){if(ws.readyState===1)fn();else ws.addEventListener("open",fn,{once:true})}
 
 function showRoom(code){
@@ -131,38 +194,49 @@ function showRoom(code){
 
 function updatePlayers(){
  const el=$("players");el.innerHTML="";
- Object.values(players).forEach(p=>{const d=document.createElement("div");d.className="player";d.innerHTML=`<span>${p.name||"Joueur"} ${p.id===hostId?"👑":""}</span><b>${p.score||0}</b>`;el.appendChild(d)});
+ Object.values(players).forEach(p=>{const d=document.createElement("div");d.className="player";d.innerHTML=`<span>${p.avatar||"🎮"} ${p.name||"Joueur"} ${p.id===hostId?"👑":""}</span><b>${p.score||0}</b>`;el.appendChild(d)});
  if(!Object.keys(players).length && role==="host")el.innerHTML='<div class="muted">En attente de joueurs…</div>';
 }
 
 function makePC(peer){
  const x=new RTCPeerConnection({iceServers:[{urls:"stun:stun.l.google.com:19302"}]});
  x.onicecandidate=e=>{if(e.candidate)send({type:"signal",to:peer,data:{candidate:e.candidate}})};
- x.ondatachannel=e=>setupData(e.channel);
+ x.ondatachannel=e=>setupData(e.channel,peer);
  return x;
 }
+let peerConns={};
 function createPeer(peer,initiator){
- if(pc)return; pc=makePC(peer);
- if(initiator){const ch=pc.createDataChannel("quiz");setupData(ch);pc.createOffer().then(o=>pc.setLocalDescription(o)).then(()=>send({type:"signal",to:peer,data:{description:pc.localDescription}}))}
+ if(peerConns[peer])return;
+ const conn=makePC(peer);
+ peerConns[peer]={pc:conn,channel:null};
+ if(initiator){const ch=conn.createDataChannel("quiz");setupData(ch,peer);conn.createOffer().then(o=>conn.setLocalDescription(o)).then(()=>send({type:"signal",to:peer,data:{description:conn.localDescription}}))}
 }
 async function handleSignal(from,data){
- if(!pc)createPeer(from,false);
+ if(!peerConns[from])createPeer(from,false);
+ const conn=peerConns[from].pc;
  if(data.description){
-   await pc.setRemoteDescription(data.description);
-   if(data.description.type==="offer"){const ans=await pc.createAnswer();await pc.setLocalDescription(ans);send({type:"signal",to:from,data:{description:pc.localDescription}})}
- }else if(data.candidate)await pc.addIceCandidate(data.candidate);
+   await conn.setRemoteDescription(data.description);
+   if(data.description.type==="offer"){const ans=await conn.createAnswer();await conn.setLocalDescription(ans);send({type:"signal",to:from,data:{description:conn.localDescription}})}
+ }else if(data.candidate)await conn.addIceCandidate(data.candidate);
 }
-function setupData(ch){
+function setupData(ch,peer){
  ch.onopen=()=>setState("🟢 WebRTC direct actif");
  ch.onclose=()=>setState("🟠 Connexion WebRTC fermée");
- ch.onmessage=e=>handleP2P(JSON.parse(e.data));
- window.dataChannel=ch;
+ ch.onmessage=e=>handleP2P(JSON.parse(e.data),peer);
+ peerConns[peer].channel=ch;
 }
-function p2p(o){if(window.dataChannel?.readyState==="open")window.dataChannel.send(JSON.stringify(o))}
+function p2pTo(peer,o){const ch=peerConns[peer]?.channel;if(ch?.readyState==="open")ch.send(JSON.stringify(o))}
+function p2pToHost(o){const hostPeerId=Object.keys(peerConns)[0];if(hostPeerId)p2pTo(hostPeerId,o)}
+
+function shuffleArr(arr){return arr.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(v=>v[1])}
+function shuffleQuestionAnswers(q){
+ const indices=shuffleArr([0,1,2,3]);
+ return {q:q.q,a:indices.map(i=>q.a[i]),c:indices.indexOf(q.c)};
+}
 
 function startQuiz(){
  if(role!=="host")return;
- localQuestions=[...QUESTIONS].sort(()=>Math.random()-.5).slice(0,10);
+ localQuestions=shuffleArr([...QUESTIONS]).slice(0,10).map(shuffleQuestionAnswers);
  send({type:"gameStart",questions:localQuestions,question:localQuestions[0],players});
  showQuestion(localQuestions[0]);show("quiz");currentQuestion=0;startTimer();
 }
@@ -176,8 +250,8 @@ function showQuestion(q){
 function answer(i){
  if(!quizStarted && role==="player")quizStarted=true;
  clearInterval(timerInterval);
- if(role==="host"){scoreAnswer(clientId,i);renderAnswerResult({correct:i===localQuestions[currentQuestion].c,points:i===localQuestions[currentQuestion].c?100:0});}
- else p2p({type:"answer",id:clientId,index:i});
+ if(role==="host"){scoreAnswer(clientId,i);renderAnswerResult({correct:i===localQuestions[currentQuestion].c,points:i===localQuestions[currentQuestion].c?100:0});broadcastScores();}
+ else p2pToHost({type:"answer",id:clientId,index:i});
  document.querySelectorAll(".answer").forEach(x=>x.disabled=true);
 }
 function startTimer(){
@@ -195,17 +269,19 @@ function nextQuestion(){
 function scoreAnswer(id,i){
  const p=players[id]||{id,name:"Joueur",score:0}; if(i===localQuestions[currentQuestion].c)p.score=(p.score||0)+100;players[id]=p;updatePlayers();
 }
-function handleP2P(m){
+function broadcastScores(){send({type:"scoreUpdate",players})}
+function handleP2P(m,peer){
  if(role==="host"&&m.type==="answer"){
    const q=localQuestions[currentQuestion],ok=m.index===q.c;scoreAnswer(m.id,m.index);
-   p2p({type:"answerResult",correct:ok,points:ok?100:0});
+   p2pTo(peer,{type:"answerResult",correct:ok,points:ok?100:0});
+   broadcastScores();
  }
  if(role==="player"&&m.type==="answerResult")renderAnswerResult(m);
 }
 function showResults(ps){
- hide("quiz");show("result");$("ranking").innerHTML=Object.values(ps).sort((a,b)=>(b.score||0)-(a.score||0)).map((p,i)=>`<div class="player"><span>${["🥇","🥈","🥉"][i]||"🏅"} ${p.name}</span><b>${p.score||0} pts</b></div>`).join("");
+ hide("quiz");show("result");$("ranking").innerHTML=Object.values(ps).sort((a,b)=>(b.score||0)-(a.score||0)).map((p,i)=>`<div class="player"><span>${["🥇","🥈","🥉"][i]||"🏅"} ${p.avatar||"🎮"} ${p.name}</span><b>${p.score||0} pts</b></div>`).join("");
 }
-function leaveRoom(){try{ws?.close();pc?.close()}catch{}location.reload()}
+function leaveRoom(){try{ws?.close();Object.values(peerConns).forEach(p=>p.pc?.close())}catch{}location.reload()}
 </script>
 </body>
 </html>

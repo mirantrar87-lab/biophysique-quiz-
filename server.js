@@ -32,7 +32,7 @@ wss.on("connection",ws=>{
     if(m.type==="create"){
       let c=code(); while(rooms.has(c))c=code();
       const room={host:m.clientId,players:new Map()};
-      room.players.set(m.clientId,{id:m.clientId,name:"Host",score:0,ws});
+      room.players.set(m.clientId,{id:m.clientId,name:m.name||"Host",avatar:m.avatar||"🎮",score:0,ws});
       rooms.set(c,room); ws.room=c; ws.id=m.clientId;
       send(ws,{type:"roomCreated",room:c});
       sendPlayerList(room);
@@ -40,7 +40,7 @@ wss.on("connection",ws=>{
     else if(m.type==="join"){
       const room=rooms.get(m.room);
       if(!room)return send(ws,{type:"error",message:"Salle introuvable"});
-      room.players.set(m.clientId,{id:m.clientId,name:m.name||"Joueur",score:0,ws});
+      room.players.set(m.clientId,{id:m.clientId,name:m.name||"Joueur",avatar:m.avatar||"🎮",score:0,ws});
       ws.room=m.room;ws.id=m.clientId;
       send(ws,{type:"roomJoined",room:m.room,host:room.host});
       send(room.players.get(room.host).ws,{type:"peerJoined",id:m.clientId});
@@ -63,13 +63,21 @@ wss.on("connection",ws=>{
       const room=rooms.get(ws.room); if(!room||room.host!==ws.id)return;
       broadcast(room,m);
     }
+    else if(m.type==="scoreUpdate"){
+      const room=rooms.get(ws.room); if(!room||room.host!==ws.id)return;
+      broadcast(room,{type:"playerList",players:m.players});
+    }
   });
   ws.on("close",()=>{
     const room=rooms.get(ws.room);if(!room)return;
     room.players.delete(ws.id);
+    if(ws.id===room.host){
+      broadcast(room,{type:"hostLeft"});
+      rooms.delete(ws.room);
+      return;
+    }
     broadcast(room,{type:"playerLeft",id:ws.id});
     sendPlayerList(room);
-    if(ws.id===room.host)rooms.delete(ws.room);
   });
 });
 function sendPlayerList(room){
