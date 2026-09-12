@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Biophysique Quiz — WebRTC</title>
+<style>
+:root{--bg:#101426;--card:#181d35;--text:#f7f8ff;--muted:#aab1cc;--accent:#7c5cff}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:radial-gradient(circle at top,#27305b,#101426 55%);color:var(--text);min-height:100vh}
+.app{max-width:980px;margin:auto;padding:22px}.top{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:20px}.brand{font-size:24px;font-weight:800}.badge{padding:7px 11px;border-radius:99px;background:#242a47;color:#bfc6e5;font-size:12px}
+.card{background:rgba(24,29,53,.92);border:1px solid #303753;border-radius:24px;padding:24px;box-shadow:0 18px 50px #0004;margin-bottom:18px}
+h1,h2,h3{margin-top:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
+button,input{font:inherit}button{border:0;border-radius:15px;padding:13px 17px;cursor:pointer;font-weight:750;color:white;background:var(--accent);transition:.15s}button:hover{transform:translateY(-1px);filter:brightness(1.08)}button.secondary{background:#303754}button.good{background:#16a37b}button.danger{background:#d64b67}
+input{width:100%;padding:13px;border-radius:14px;border:1px solid #3a4262;background:#0f1427;color:white;outline:none}
+.hidden{display:none!important}.center{text-align:center}.muted{color:var(--muted)}.code{font-size:34px;letter-spacing:8px;font-weight:900;text-align:center;margin:12px 0;color:#fff}
+.answers{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:22px}.answer{min-height:105px;font-size:30px;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.answer span{font-size:14px}.answer.a{background:#e94d6d}.answer.b{background:#3f83f8}.answer.c{background:#16a37b}.answer.d{background:#e6a51f}
+.question{font-size:24px;font-weight:750;line-height:1.35}.progress{height:8px;background:#303752;border-radius:99px;overflow:hidden}.progress>i{display:block;height:100%;background:linear-gradient(90deg,#7c5cff,#20d6b5);width:0}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.players{display:grid;gap:9px}.player{display:flex;justify-content:space-between;padding:12px 14px;background:#11162a;border-radius:13px}
+.status{font-size:13px;color:#78e4c5}.notice{padding:12px 14px;border-radius:14px;background:#242a47;color:#dce1f6;margin:12px 0}
+ol{padding-left:22px}.small{font-size:12px}
+@media(max-width:600px){.app{padding:12px}.card{padding:18px;border-radius:19px}.answers{gap:10px}.answer{min-height:90px}.question{font-size:20px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top"><div class="brand">⚡ Biophysique Quiz</div><div class="badge">WebRTC • local / Internet</div></div>
+
+  <section id="home" class="card">
+    <h1>Quiz multijoueur</h1>
+    <p class="muted">Crée une partie ou rejoins une partie avec un code. Les joueurs communiquent directement entre eux via WebRTC après la signalisation.</p>
+    <div class="grid">
+      <div class="card" style="margin:0">
+        <h3>👑 Host</h3><p class="muted">Crée la salle et lance les questions.</p>
+        <button onclick="createRoom()">Créer une partie</button>
+      </div>
+      <div class="card" style="margin:0">
+        <h3>🎮 Joueur</h3><p class="muted">Entre le code donné par l'host.</p>
+        <input id="joinCode" maxlength="6" placeholder="CODE">
+        <br><br><button class="good" onclick="joinRoom()">Rejoindre</button>
+      </div>
+    </div>
+    <div class="notice small">Pour plusieurs téléphones sur un réseau local, ouvre cette page depuis l'adresse IP du PC qui exécute le serveur Node.js. Pour Internet, utilise un serveur de signalisation accessible publiquement et HTTPS/WSS.</div>
+  </section>
+
+  <section id="room" class="card hidden">
+    <div class="row" style="justify-content:space-between">
+      <div><h2 id="roomTitle">Salle</h2><div id="role" class="status"></div></div>
+      <button class="secondary" onclick="leaveRoom()">Quitter</button>
+    </div>
+    <div id="hostCode" class="hidden center"><div class="muted">Code de la partie</div><div id="roomCode" class="code"></div></div>
+    <div class="notice" id="connectionState">Connexion…</div>
+    <h3>Joueurs</h3><div id="players" class="players"></div>
+    <div id="hostControls" class="hidden">
+      <hr style="border-color:#303753;border-width:1px 0 0;margin:20px 0">
+      <div class="row"><button onclick="startQuiz()">🚀 Démarrer le quiz</button><button class="secondary" onclick="nextQuestion()">Question suivante</button></div>
+    </div>
+  </section>
+
+  <section id="quiz" class="card hidden">
+    <div class="row" style="justify-content:space-between"><span id="qCounter"></span><span id="timer"></span></div>
+    <br><div class="progress"><i id="bar"></i></div><br>
+    <div id="question" class="question"></div>
+    <div id="answers" class="answers"></div>
+    <div id="feedback" class="notice hidden"></div>
+  </section>
+
+  <section id="result" class="card hidden">
+    <h2>🏆 Résultats</h2><div id="ranking" class="players"></div>
+    <br><button onclick="location.reload()">Nouvelle partie</button>
+  </section>
+</div>
+
+<script>
+const SYMBOLS=["🔴","🔵","🟢","🟡"];
+const QUESTIONS=[
+ {q:"Qu'est-ce qu'un rayonnement ?",a:["Un processus d'émission ou de transmission d'énergie impliquant une onde, une particule ou un corpuscule.","Une technique d'imagerie utilisant uniquement les ultrasons.","Une source d'énergie toujours non ionisante.","Une réaction immunologique sans énergie."],c:0},
+ {q:"Quelle affirmation correspond au rayonnement ionisant dans ce cours ?",a:["L'énergie des particules est supérieure à 10 eV et elles peuvent ioniser des atomes cibles.","L'énergie des photons est toujours inférieure à 10 eV.","Il s'agit uniquement des ondes radio.","Il ne peut pas former d'ions."],c:0},
+ {q:"Lequel est cité comme rayonnement non-ionisant ?",a:["Les micro-ondes","La radiologie conventionnelle","La scannographie","La curiethérapie"],c:0},
+ {q:"La mammographie est une technique d'imagerie médicale utilisant :",a:["Des rayons X à faible dose, spécifiquement pour explorer le cancer du sein.","Des radioéléments administrés uniquement in vitro.","Des ultrasons pour étudier les vaisseaux.","Un faisceau laser pour traiter une tumeur."],c:0},
+ {q:"La scannographie associe principalement :",a:["Des rayons X et un ordinateur pour produire des images en coupe du corps.","Des ultrasons et une caméra thermique.","Un laser et un radioélément non scellé.","Des réactions immunologiques et des rayons X."],c:0},
+ {q:"La radiologie conventionnelle est présentée comme ayant une visée :",a:["Diagnostique","Uniquement thérapeutique","Uniquement immunologique","Uniquement biologique"],c:0},
+ {q:"La radiologie interventionnelle est présentée comme :",a:["Diagnostique et thérapeutique","Uniquement diagnostique","Uniquement dentaire","Uniquement nucléaire"],c:0},
+ {q:"Quelle technique dentaire donne sur une même image l'intégralité des deux maxillaires ?",a:["Radiographie panoramique dentaire","Radiographie rétro-alvéolaire","Téléradiographie crânienne","Angiographie numérisée"],c:0},
+ {q:"En médecine nucléaire in-vivo, on étudie notamment :",a:["Les métabolismes d'un organe grâce à un radiopharmaceutique.","Les réactions immunologiques sans administration au patient.","Uniquement la peau par thermographie.","Uniquement les maxillaires par rotation du tube."],c:0},
+ {q:"Quelle technique de radiothérapie place la source au contact du patient ou près de la zone à traiter ?",a:["La curiethérapie","La télégammathérapie","La radiologie conventionnelle","La thermographie"],c:0},
+ {q:"Quel radioélément est cité pour la cobaltothérapie ?",a:["Co-60","Cs-137","Ir-192","10 eV"],c:0},
+ {q:"Quel exemple correspond à un effet déterministe ?",a:["Brûlure de la peau","Cancer radio-induit","Mutation génétique transmissible","Anomalie génétique"],c:0},
+ {q:"Pour un effet déterministe, selon le cours :",a:["Il existe une dose seuil et la gravité augmente avec la dose.","Il n'existe aucun seuil et seule la probabilité augmente.","Il n'y a aucun lien avec la dose.","Il apparaît exclusivement in vitro."],c:0},
+ {q:"Pour un effet stochastique, selon le cours :",a:["La probabilité augmente avec la dose, mais pas la gravité.","La gravité augmente avec la dose après un seuil.","Il faut toujours dépasser une dose seuil.","Il s'agit uniquement d'une brûlure radiologique."],c:0}
+];
+
+let ws=null, pc=null, roomId=null, role=null, clientId=crypto.randomUUID(), hostId=null;
+let players={}, currentQuestion=0, quizStarted=false, timerInterval=null, deadline=0, localQuestions=[];
+
+function $(id){return document.getElementById(id)}
+function show(id){$(id).classList.remove("hidden")} function hide(id){$(id).classList.add("hidden")}
+function serverURL(){return (location.protocol==="https:"?"wss://":"ws://")+location.host}
+function send(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o))}
+function setState(s){$("connectionState").textContent=s}
+
+function connect(){
+ ws=new WebSocket(serverURL());
+ ws.onopen=()=>setState("🟢 Connecté au serveur de signalisation");
+ ws.onclose=()=>setState("🔴 Serveur déconnecté");
+ ws.onmessage=async e=>{
+   const m=JSON.parse(e.data);
+   if(m.type==="roomCreated"){roomId=m.room;hostId=clientId;showRoom(m.room);updatePlayers()}
+   if(m.type==="roomJoined"){showRoom(m.room);hostId=m.host;updatePlayers()}
+   if(m.type==="peerList"){m.peers.forEach(id=>createPeer(id,true));}
+   if(m.type==="peerJoined"){createPeer(m.id,false);}
+   if(m.type==="signal"){await handleSignal(m.from,m.data);}
+   if(m.type==="playerList"){players=m.players;updatePlayers()}
+   if(m.type==="gameStart"){localQuestions=m.questions;currentQuestion=0;showQuestion(m.question);show("quiz");}
+   if(m.type==="answerResult"){renderAnswerResult(m)}
+   if(m.type==="nextQuestion"){currentQuestion=m.index;showQuestion(m.question)}
+   if(m.type==="gameEnd"){showResults(m.players)}
+ };
+}
+
+function createRoom(){role="host";connect();waitForOpen(()=>send({type:"create",clientId}));}
+function joinRoom(){const c=$("joinCode").value.trim().toUpperCase();if(!c)return alert("Entre un code.");role="player";connect();waitForOpen(()=>send({type:"join",room:c,clientId,name:"Joueur "+clientId.slice(0,4)}));}
+function waitForOpen(fn){if(ws.readyState===1)fn();else ws.addEventListener("open",fn,{once:true})}
+
+function showRoom(code){
+ hide("home");show("room");$("roomCode").textContent=code;$("roomTitle").textContent="Salle "+code;
+ $("role").textContent=role==="host"?"👑 HOST":"🎮 JOUEUR";
+ if(role==="host"){show("hostCode");show("hostControls")}
+ setState("🟢 Salle connectée");
+}
+
+function updatePlayers(){
+ const el=$("players");el.innerHTML="";
+ Object.values(players).forEach(p=>{const d=document.createElement("div");d.className="player";d.innerHTML=`<span>${p.name||"Joueur"} ${p.id===hostId?"👑":""}</span><b>${p.score||0}</b>`;el.appendChild(d)});
+ if(!Object.keys(players).length && role==="host")el.innerHTML='<div class="muted">En attente de joueurs…</div>';
+}
+
+function makePC(peer){
+ const x=new RTCPeerConnection({iceServers:[{urls:"stun:stun.l.google.com:19302"}]});
+ x.onicecandidate=e=>{if(e.candidate)send({type:"signal",to:peer,data:{candidate:e.candidate}})};
+ x.ondatachannel=e=>setupData(e.channel);
+ return x;
+}
+function createPeer(peer,initiator){
+ if(pc)return; pc=makePC(peer);
+ if(initiator){const ch=pc.createDataChannel("quiz");setupData(ch);pc.createOffer().then(o=>pc.setLocalDescription(o)).then(()=>send({type:"signal",to:peer,data:{description:pc.localDescription}}))}
+}
+async function handleSignal(from,data){
+ if(!pc)createPeer(from,false);
+ if(data.description){
+   await pc.setRemoteDescription(data.description);
+   if(data.description.type==="offer"){const ans=await pc.createAnswer();await pc.setLocalDescription(ans);send({type:"signal",to:from,data:{description:pc.localDescription}})}
+ }else if(data.candidate)await pc.addIceCandidate(data.candidate);
+}
+function setupData(ch){
+ ch.onopen=()=>setState("🟢 WebRTC direct actif");
+ ch.onclose=()=>setState("🟠 Connexion WebRTC fermée");
+ ch.onmessage=e=>handleP2P(JSON.parse(e.data));
+ window.dataChannel=ch;
+}
+function p2p(o){if(window.dataChannel?.readyState==="open")window.dataChannel.send(JSON.stringify(o))}
+
+function startQuiz(){
+ if(role!=="host")return;
+ localQuestions=[...QUESTIONS].sort(()=>Math.random()-.5).slice(0,10);
+ send({type:"gameStart",questions:localQuestions,question:localQuestions[0],players});
+ showQuestion(localQuestions[0]);show("quiz");currentQuestion=0;startTimer();
+}
+function showQuestion(q){
+ $("qCounter").textContent=`Question ${currentQuestion+1}/10`;
+ $("question").textContent=q.q;$("feedback").classList.add("hidden");
+ const box=$("answers");box.innerHTML="";
+ q.a.forEach((txt,i)=>{const b=document.createElement("button");b.className="answer "+["a","b","c","d"][i];b.innerHTML=`${SYMBOLS[i]}<span>${txt}</span>`;b.onclick=()=>answer(i);box.appendChild(b)});
+ $("bar").style.width=((currentQuestion)/10*100)+"%";startTimer();
+}
+function answer(i){
+ if(!quizStarted && role==="player")quizStarted=true;
+ clearInterval(timerInterval);
+ if(role==="host"){scoreAnswer(clientId,i);renderAnswerResult({correct:i===localQuestions[currentQuestion].c,points:i===localQuestions[currentQuestion].c?100:0});}
+ else p2p({type:"answer",id:clientId,index:i});
+ document.querySelectorAll(".answer").forEach(x=>x.disabled=true);
+}
+function startTimer(){
+ deadline=Date.now()+15000;clearInterval(timerInterval);
+ timerInterval=setInterval(()=>{let s=Math.max(0,Math.ceil((deadline-Date.now())/1000));$("timer").textContent="⏱ "+s+"s";if(!s){clearInterval(timerInterval);document.querySelectorAll(".answer").forEach(x=>x.disabled=true)}},200);
+}
+function renderAnswerResult(m){$("feedback").classList.remove("hidden");$("feedback").textContent=m.correct?"✅ Bonne réponse ! +"+m.points+" points":"❌ Mauvaise réponse."}
+function nextQuestion(){
+ if(role!=="host")return;
+ currentQuestion++;
+ if(currentQuestion>=localQuestions.length){send({type:"gameEnd",players});showResults(players);return}
+ send({type:"nextQuestion",index:currentQuestion,question:localQuestions[currentQuestion]});
+ showQuestion(localQuestions[currentQuestion]);
+}
+function scoreAnswer(id,i){
+ const p=players[id]||{id,name:"Joueur",score:0}; if(i===localQuestions[currentQuestion].c)p.score=(p.score||0)+100;players[id]=p;updatePlayers();
+}
+function handleP2P(m){
+ if(role==="host"&&m.type==="answer"){
+   const q=localQuestions[currentQuestion],ok=m.index===q.c;scoreAnswer(m.id,m.index);
+   p2p({type:"answerResult",correct:ok,points:ok?100:0});
+ }
+ if(role==="player"&&m.type==="answerResult")renderAnswerResult(m);
+}
+function showResults(ps){
+ hide("quiz");show("result");$("ranking").innerHTML=Object.values(ps).sort((a,b)=>(b.score||0)-(a.score||0)).map((p,i)=>`<div class="player"><span>${["🥇","🥈","🥉"][i]||"🏅"} ${p.name}</span><b>${p.score||0} pts</b></div>`).join("");
+}
+function leaveRoom(){try{ws?.close();pc?.close()}catch{}location.reload()}
+</script>
+</body>
+</html>
