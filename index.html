@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Biophysique Quiz — WebRTC</title>
+<title>PACES QUIZ</title>
 <style>
 :root{--bg:#101426;--card:#181d35;--text:#f7f8ff;--muted:#aab1cc;--accent:#7c5cff}
 *{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:radial-gradient(circle at top,#27305b,#101426 55%);color:var(--text);min-height:100vh}
 .app{max-width:980px;margin:auto;padding:22px}.top{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:20px}.brand{font-size:24px;font-weight:800}.badge{padding:7px 11px;border-radius:99px;background:#242a47;color:#bfc6e5;font-size:12px}
 .card{background:rgba(24,29,53,.92);border:1px solid #303753;border-radius:24px;padding:24px;box-shadow:0 18px 50px #0004;margin-bottom:18px}
 h1,h2,h3{margin-top:0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
-button,input{font:inherit}button{border:0;border-radius:15px;padding:13px 17px;cursor:pointer;font-weight:750;color:white;background:var(--accent);transition:.15s}button:hover{transform:translateY(-1px);filter:brightness(1.08)}button.secondary{background:#303754}button.good{background:#16a37b}button.danger{background:#d64b67}
-input{width:100%;padding:13px;border-radius:14px;border:1px solid #3a4262;background:#0f1427;color:white;outline:none}
+button,input,select{font:inherit}button{border:0;border-radius:15px;padding:13px 17px;cursor:pointer;font-weight:750;color:white;background:var(--accent);transition:.15s}button:hover{transform:translateY(-1px);filter:brightness(1.08)}button.secondary{background:#303754}button.good{background:#16a37b}button.danger{background:#d64b67}
+input,select{width:100%;padding:13px;border-radius:14px;border:1px solid #3a4262;background:#0f1427;color:white;outline:none}
 .hidden{display:none!important}.center{text-align:center}.muted{color:var(--muted)}.code{font-size:34px;letter-spacing:8px;font-weight:900;text-align:center;margin:12px 0;color:#fff}
 .answers{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;margin-top:22px}.answer{min-height:105px;font-size:30px;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
 .answer span{font-size:14px}.answer.a{background:#e94d6d}.answer.b{background:#3f83f8}.answer.c{background:#16a37b}.answer.d{background:#e6a51f}
@@ -56,7 +56,7 @@ ol{padding-left:22px}.small{font-size:12px}
 </head>
 <body>
 <div class="app">
-  <div class="top"><div class="brand">⚡ Biophysique Quiz</div><div class="badge">Multijoueur en ligne</div></div>
+  <div class="top"><div class="brand">⚡ PACES QUIZ</div><div class="badge">Multijoueur en ligne</div></div>
 
   <section id="profile" class="card">
     <h1>Ton profil</h1>
@@ -98,6 +98,14 @@ ol{padding-left:22px}.small{font-size:12px}
     <h3>Joueurs</h3><div id="players" class="players"></div>
     <div id="hostControls" class="hidden">
       <hr style="border-color:#303753;border-width:1px 0 0;margin:20px 0">
+      <div style="margin-bottom:14px">
+        <label class="small muted">UE (Unité d'enseignement)</label>
+        <select id="subjectSelect">
+          <option value="physiologie">Physiologie</option>
+          <option value="pharmacologie">Pharmacologie</option>
+          <option value="biophysique">Biophysique</option>
+        </select>
+      </div>
       <div class="row"><button onclick="startQuiz()">🚀 Démarrer le quiz</button><button class="secondary" onclick="nextQuestion()">⏭ Passer la question</button></div>
     </div>
   </section>
@@ -123,7 +131,8 @@ ol{padding-left:22px}.small{font-size:12px}
 
 <script>
 const SYMBOLS=["🔴","🔵","🟢","🟡"];
-const QUESTIONS=[
+const QUESTION_BANKS={
+biophysique:[
  {q:"Qu'est-ce qu'un rayonnement ?",a:["Un processus d'émission ou de transmission d'énergie impliquant une onde, une particule ou un corpuscule.","Une technique d'imagerie utilisant uniquement les ultrasons.","Une source d'énergie toujours non ionisante.","Une réaction immunologique sans énergie."],c:0},
  {q:"Quelle affirmation correspond au rayonnement ionisant dans ce cours ?",a:["L'énergie des particules est supérieure à 10 eV et elles peuvent ioniser des atomes cibles.","L'énergie des photons est toujours inférieure à 10 eV.","Il s'agit uniquement des ondes radio.","Il ne peut pas former d'ions."],c:0},
  {q:"Lequel est cité comme rayonnement non-ionisant ?",a:["Les micro-ondes","La radiologie conventionnelle","La scannographie","La curiethérapie"],c:0},
@@ -138,7 +147,89 @@ const QUESTIONS=[
  {q:"Quel exemple correspond à un effet déterministe ?",a:["Brûlure de la peau","Cancer radio-induit","Mutation génétique transmissible","Anomalie génétique"],c:0},
  {q:"Pour un effet déterministe, selon le cours :",a:["Il existe une dose seuil et la gravité augmente avec la dose.","Il n'existe aucun seuil et seule la probabilité augmente.","Il n'y a aucun lien avec la dose.","Il apparaît exclusivement in vitro."],c:0},
  {q:"Pour un effet stochastique, selon le cours :",a:["La probabilité augmente avec la dose, mais pas la gravité.","La gravité augmente avec la dose après un seuil.","Il faut toujours dépasser une dose seuil.","Il s'agit uniquement d'une brûlure radiologique."],c:0}
-];
+],
+physiologie:[
+ {q:"Comment le cours définit-il le sang ?",a:["Un fluide biologique de couleur rouge légèrement aqueuse qui circule continuellement dans les vaisseaux sanguins et le cœur et irrigue tous les organes.","Un tissu solide constitutif exclusivement des os.","Un liquide produit uniquement par le foie.","Une substance qui ne circule que dans les artères."],c:0},
+ {q:"Comment le cours définit-il l'hémostase ?",a:["L'ensemble des phénomènes physiologiques qui concourent à l'arrêt du saignement et à l'intégrité vasculaire.","Le processus exclusif de fabrication des globules rouges.","La destruction complète des plaquettes après un saignement.","Un phénomène qui ne concerne que les vaisseaux, sans les plaquettes."],c:0},
+ {q:"Comment le cours définit-il l'hémostase primaire ?",a:["Un processus physiologique aboutissant à la formation d'un thrombus blanc (le clou plaquettaire).","Un processus aboutissant uniquement à la formation du caillot de fibrine.","Un processus qui détruit la fibrine formée.","Un processus qui ne fait intervenir que les vaisseaux."],c:0},
+ {q:"Comment le cours définit-il l'hémostase secondaire ?",a:["Un processus physiologique aboutissant à la formation du caillot de fibrine.","Un processus aboutissant à la formation du clou plaquettaire.","Un processus qui dissout la fibrine.","Un processus qui ne concerne que les plaquettes."],c:0},
+ {q:"Quel est le but de la fibrinolyse selon le cours ?",a:["Dissoudre progressivement la fibrine formée au niveau de la brèche vasculaire afin de reperméabiliser le vaisseau.","Former le clou plaquettaire.","Former le caillot de fibrine.","Stabiliser définitivement la fibrine formée."],c:0},
+ {q:"Parmi les intervenants de l'hémostase primaire cités, lequel est mentionné ?",a:["Le facteur de Willebrand.","Le facteur XIIIa uniquement.","La plasmine uniquement.","La thrombomoduline uniquement."],c:0},
+ {q:"Quel facteur stabilise la fibrine selon le cours ?",a:["Le facteur XIIIa.","Le facteur Va.","Le facteur VIIIa.","Le facteur IXa."],c:0},
+ {q:"Quel produit de dégradation de la fibrine est cité dans le cours ?",a:["Les D-dimères.","La transferrine.","La ferritine.","L'urobiline."],c:0},
+ {q:"Quels sont les deux temps de l'hémostase primaire cités dans le cours ?",a:["Le temps vasculaire et le temps plaquettaire.","Le temps enzymatique et le temps hormonal.","Le temps intrinsèque et le temps extrinsèque.","Le temps hépatique et le temps rénal."],c:0},
+ {q:"Quelle est la première étape de l'hémostase secondaire selon le cours ?",a:["La formation du complexe prothrombinase.","La formation de la thrombine.","La formation de la fibrine.","La dissolution du caillot."],c:0},
+ {q:"Quels sont les éléments du complexe prothrombinase cités dans le cours ?",a:["Xa, Va, phospholipides et Ca++.","Fibrinogène et thrombine uniquement.","XIIa et plasmine uniquement.","Facteur VIII et facteur IX uniquement."],c:0},
+ {q:"Qui active le facteur X selon la voie extrinsèque, d'après le cours ?",a:["Le complexe facteur tissulaire-VIIa (FT-VIIa).","Le complexe ténase (IXa, VIIIa, phospholipides, Ca++).","La plasmine.","La thrombomoduline."],c:0},
+ {q:"Qui active le facteur X selon la voie intrinsèque, d'après le cours ?",a:["Le complexe ténase (IXa, VIIIa, phospholipides, Ca++).","Le complexe FT-VIIa.","Le facteur XIIIa.","La protéine C activée."],c:0},
+ {q:"Quel est le substrat final de l'hémostase secondaire selon le cours ?",a:["Le fibrinogène.","La prothrombine.","Le facteur XII.","La plasmine."],c:0},
+ {q:"Parmi les inhibiteurs physiologiques de la coagulation cités, lequel est mentionné ?",a:["L'antithrombine.","Le facteur Va.","La thromboplastine tissulaire.","Le fibrinogène."],c:0},
+ {q:"Quel test explore la voie extrinsèque de la coagulation selon le cours ?",a:["Le TQ (temps de Quick).","Le TCA (temps de céphaline avec activateur).","Le temps de saignement.","Le dosage des D-dimères."],c:0},
+ {q:"Quel test explore la voie intrinsèque de la coagulation selon le cours ?",a:["Le TCA (temps de céphaline avec activateur).","Le TQ (temps de Quick).","Le dosage du taux de plaquettes.","La recherche de PDF."],c:0},
+ {q:"Quelles sont les deux composantes de l'hémoglobine citées dans le cours ?",a:["L'hème et la globine.","Le fer et le calcium.","La ferritine et la transferrine.","L'actine et la tubuline."],c:0},
+ {q:"Combien d'atomes de fer comporte l'hème selon le cours ?",a:["Quatre.","Deux.","Un.","Huit."],c:0},
+ {q:"Quel est le type d'hémoglobine majoritaire chez l'adulte normal selon le cours ?",a:["L'hémoglobine A (Hb A).","L'hémoglobine fœtale (Hb F).","L'hémoglobine glyquée.","L'hémoglobine S."],c:0},
+ {q:"Comment appelle-t-on la destruction des hématies selon le cours ?",a:["L'hémolyse.","L'hématopoïèse.","L'érythropoïèse.","La fibrinolyse."],c:0},
+ {q:"Quel est le produit du catabolisme de l'hémoglobine dans le sang selon le cours ?",a:["La bilirubine.","L'urobiline.","La stercobiline.","La ferritine."],c:0},
+ {q:"Quels sont les deux éléments nécessaires pour la synthèse d'ADN des hématies selon le cours ?",a:["La vitamine B12 et les folates.","Le fer et le calcium.","La vitamine K et le fer.","Le zinc et le cuivre."],c:0},
+ {q:"Quelle est la protéine de transport du fer dans l'organisme selon le cours ?",a:["La transferrine.","La ferritine.","L'hémosidérine.","L'albumine."],c:0},
+ {q:"Quelles sont les 3 constantes érythrocytaires citées dans le cours ?",a:["VGM, TCMH et CCMH.","VS, TCA et TQ.","Hb, Ht et GR uniquement.","ATP, Ca++ et fibrinogène."],c:0},
+ {q:"Quelle est la durée de vie des hématies selon le cours ?",a:["120 jours.","7 à 10 jours.","30 jours.","1 an."],c:0},
+ {q:"Quelle est la durée de vie des plaquettes selon le cours ?",a:["7 à 10 jours.","120 jours.","24 heures.","1 mois."],c:0},
+ {q:"Comment sont formées les plaquettes selon le cours ?",a:["Par fragmentation du cytoplasme des mégacaryocytes.","Par division directe des érythrocytes.","Par différenciation des lymphocytes B.","Par fragmentation des polynucléaires."],c:0},
+ {q:"Parmi les types de polynucléaires cités dans le cours, lequel est mentionné ?",a:["Les polynucléaires basophiles.","Les lymphocytes T uniquement.","Les monocytes uniquement.","Les plasmocytes uniquement."],c:0},
+ {q:"Quelle est la principale fonction des monocytes selon le cours ?",a:["La phagocytose.","La synthèse des anticorps.","Le transport de l'oxygène.","La coagulation du sang."],c:0},
+ {q:"Quelle est la cellule de l'immunité à médiation humorale selon le cours ?",a:["Le lymphocyte B.","Le lymphocyte T.","Le monocyte.","Le polynucléaire neutrophile."],c:0},
+ {q:"Quelle cellule synthétise les anticorps selon le cours ?",a:["Le plasmocyte.","Le lymphocyte T.","Le polynucléaire éosinophile.","La cellule NK."],c:0},
+ {q:"Quels sont les deux principaux types de lymphocytes cités dans le cours ?",a:["Les lymphocytes B et T.","Les lymphocytes NK et T uniquement.","Les lymphocytes alpha et bêta.","Les lymphocytes primaires et secondaires."],c:0},
+ {q:"Comment le cours définit-il l'hématopoïèse ?",a:["L'ensemble des phénomènes physiologiques qui concourent à la fabrication ou au remplacement continu et régulé des cellules sanguines.","Le processus exclusif de destruction des cellules sanguines âgées.","La production des anticorps par les plasmocytes.","Le transport de l'oxygène par les hématies."],c:0},
+ {q:"Où siège l'hématopoïèse chez l'adulte selon le cours ?",a:["Au niveau de la moelle osseuse.","Au niveau du foie uniquement.","Au niveau de la rate uniquement.","Au niveau des ganglions lymphatiques uniquement."],c:0},
+ {q:"Quelle est l'hormone de régulation de l'érythropoïèse selon le cours ?",a:["L'érythropoïétine.","La thrombopoïétine.","L'insuline.","La thrombine."],c:0},
+ {q:"Quel est l'antigène absent chez un sujet Rhésus négatif selon le cours ?",a:["L'antigène D.","L'antigène A.","L'antigène B.","L'antigène C."],c:0},
+ {q:"Quels sont les anticorps présents chez un sujet de groupe O selon le cours ?",a:["Les anticorps anti-A et anti-B.","Aucun anticorps.","Uniquement l'anticorps anti-A.","Uniquement l'anticorps anti-B."],c:0},
+ {q:"Quels sont les anticorps présents chez un sujet de groupe AB selon le cours ?",a:["Aucun anticorps du système ABO.","Les anticorps anti-A et anti-B.","Uniquement l'anticorps anti-A.","Uniquement l'anticorps anti-B."],c:0},
+ {q:"Quel groupe sanguin est considéré comme donneur universel selon le cours ?",a:["Le groupe O.","Le groupe AB.","Le groupe A.","Le groupe B."],c:0},
+ {q:"Quel groupe sanguin est considéré comme receveur universel selon le cours ?",a:["Le groupe AB.","Le groupe O.","Le groupe A.","Le groupe B."],c:0},
+ {q:"Quelle est la différence entre sérum et plasma selon le cours ?",a:["Le sérum est dépourvu de facteur de coagulation tandis que le plasma en est pourvu.","Le plasma est dépourvu de facteur de coagulation tandis que le sérum en est pourvu.","Le sérum et le plasma contiennent tous deux des facteurs de coagulation en quantité identique.","Le plasma ne contient pas de cellules alors que le sérum en contient."],c:0}
+],
+pharmacologie:[
+ {q:"Selon le cours, comment est définie la pharmacologie ?",a:["C'est une science du médicament sans aucune limitation.","C'est uniquement l'étude des effets indésirables des médicaments.","C'est la science limitée à la fabrication industrielle des médicaments.","C'est l'étude exclusive des plantes médicinales."],c:0},
+ {q:"Combien de compositions de la pharmacologie sont énumérées dans le cours ?",a:["Onze (11), dont la pharmacocinétique, la pharmacodynamique et la pharmacovigilance.","Cinq (5), uniquement liées aux essais cliniques.","Trois (3), limitées à la chimie, la cinétique et la dynamique.","Vingt (20), incluant la médecine générale."],c:0},
+ {q:"Comment le cours définit-il un médicament ?",a:["Toute substance ou composition présentée comme possédant des propriétés curatives ou préventives à l'égard de la maladie humaine ou animale.","Toute substance chimique fabriquée en laboratoire, sans lien avec la maladie.","Un produit uniquement destiné à un usage vétérinaire.","Une substance qui provoque systématiquement une guérison immédiate."],c:0},
+ {q:"En quelle année a été isolée la morphine à partir de l'opium, selon le cours ?",a:["1803","1886","1941","1942"],c:0},
+ {q:"Qui a développé le vaccin contre la rage en 1886, selon le cours ?",a:["Louis Pasteur","Alexander Fleming","Robert Koch","Edward Jenner"],c:0},
+ {q:"Quelle découverte est associée à l'année 1941 dans le cours ?",a:["La découverte de la pénicilline.","La découverte des premiers antihistaminiques.","L'isolement de la morphine.","Le vaccin contre la rage."],c:0},
+ {q:"Quelles sont les origines des médicaments citées dans le cours ?",a:["Naturelle, synthétique, semi-synthétique et biotechnologique.","Uniquement naturelle et synthétique.","Uniquement chimique et minérale.","Végétale, animale et minérale seulement."],c:0},
+ {q:"Que désigne la formulation galénique d'un médicament, selon le cours ?",a:["La formulation qui permet de présenter le médicament sous la forme la plus adaptée à l'assimilation du principe actif selon le mode d'administration.","Le processus de fabrication industrielle uniquement des comprimés.","La liste des effets indésirables possibles d'un médicament.","Le mode de conservation exclusif à basse température."],c:0},
+ {q:"Quelle est la composition d'un médicament selon le cours ?",a:["Le(s) principe(s) actif(s) et les excipients.","Uniquement le principe actif, sans autre composant.","Uniquement des excipients, sans principe actif.","Des conservateurs et des colorants uniquement."],c:0},
+ {q:"Comment le cours définit-il l'excipient ?",a:["Toute substance autre que le principe actif dans un médicament.","La substance responsable de l'action pharmacologique du médicament.","Un colorant ajouté uniquement pour l'aspect esthétique.","Le composant qui détermine la date de péremption."],c:0},
+ {q:"Parmi les excipients principaux cités, lequel sert à faciliter la désagrégation du comprimé ?",a:["Le désintégrant (désagrégeant ou délitant).","Le diluant ou véhicule.","L'édulcorant.","Le colorant."],c:0},
+ {q:"Quelles sont les trois principales dénominations des médicaments citées dans le cours ?",a:["Dénomination scientifique, commerciale et commune internationale.","Dénomination chimique, biologique et physique.","Dénomination nationale, régionale et locale.","Dénomination générique, brevetée et pharmaceutique uniquement."],c:0},
+ {q:"Quelles sont les principales utilisations des médicaments selon le cours ?",a:["Prévention de maladie, traitement, diagnostic et exploration du fonctionnement de l'organisme.","Uniquement le traitement des maladies infectieuses.","Uniquement la prévention, sans usage diagnostique.","Uniquement des fins esthétiques et nutritionnelles."],c:0},
+ {q:"Selon quels critères les médicaments peuvent-ils être classés, d'après le cours ?",a:["Disponibilité dans les officines, contenu en principe actif, et familles pharmaco-thérapeutiques.","Uniquement selon leur couleur et leur forme.","Uniquement selon leur prix de vente.","Uniquement selon leur pays de fabrication."],c:0},
+ {q:"Comment le cours définit-il la forme galénique d'un médicament ?",a:["La forme individuelle mettant ensemble les principes actifs et les excipients pour constituer un médicament.","Un synonyme exclusif de comprimé.","La forme chimique brute du principe actif avant transformation.","Le mode d'élimination du médicament par l'organisme."],c:0},
+ {q:"Quelles sont les trois grandes catégories de formes galéniques citées ?",a:["Formes solides, formes liquides et autres présentations.","Formes orales, injectables et cutanées uniquement.","Formes naturelles et synthétiques uniquement.","Formes rapides et lentes uniquement."],c:0},
+ {q:"Lequel de ces éléments fait partie des formes liquides utilisant l'eau comme solvant ?",a:["La tisane.","La pommade.","Le suppositoire.","La gélule."],c:0},
+ {q:"Parmi les modes de passage des médicaments à travers les membranes biologiques cités, lequel implique un transporteur ?",a:["L'utilisation de transporteur.","La diffusion passive uniquement.","L'endocytose-exocytose uniquement.","Le passage paracellulaire uniquement."],c:0},
+ {q:"Quel est un avantage des voies digestives (orale et perlinguale) selon le cours ?",a:["Administration facile, économique et facilement acceptée par le patient.","Absence totale d'effet de premier passage hépatique.","Effets systématiquement plus rapides que la voie veineuse.","Aucun risque en cas de surdosage."],c:0},
+ {q:"Quel est un inconvénient des voies parentérales selon le cours ?",a:["Nécessité de disposer de matériels stériles et coût élevé.","Absorption irrégulière et incomplète.","Effet de premier passage hépatique important.","Impossibilité d'administrer des médicaments irritants."],c:0},
+ {q:"Quel est un avantage des voies transmuqueuses selon le cours ?",a:["Voie appropriée aux petits enfants ou aux malades inconscients.","Absence totale de risque hémorroïdaire.","Absorption toujours rapide et complète.","Coût de traitement très faible dans tous les cas."],c:0},
+ {q:"Parmi les paramètres pharmacocinétiques régissant la distribution des médicaments, lequel est cité ?",a:["La demi-vie.","Le poids moléculaire uniquement.","La couleur du comprimé.","Le nom commercial du médicament."],c:0},
+ {q:"Quels sont les mécanismes d'action des médicaments cités dans le cours ?",a:["Interaction avec les récepteurs, inhibition d'une activité enzymatique, et neutralisation des cellules nocives.","Uniquement la modification de la couleur des tissus.","Uniquement l'augmentation de la température corporelle.","Uniquement l'action sur le système osseux."],c:0},
+ {q:"Où se déroule surtout le catabolisme et la biotransformation des médicaments, selon le cours ?",a:["Au niveau hépatique, avec les enzymes microsomiales et extra-microsomiales.","Exclusivement au niveau rénal.","Exclusivement au niveau pulmonaire.","Exclusivement au niveau cutané."],c:0},
+ {q:"Quelles sont les voies d'élimination des médicaments citées dans le cours ?",a:["Voies rénales, voies gastro-intestinales, et autres voies (pulmonaires, larmes, sueur, lait, salive).","Uniquement la voie rénale.","Uniquement la voie cutanée.","Uniquement par la salive."],c:0},
+ {q:"Comment le cours définit-il les effets indésirables des médicaments ?",a:["Toute réaction ou effet nuisible, néfaste et non souhaité se produisant fortuitement lors de l'usage d'un médicament.","Uniquement les effets liés à un surdosage volontaire.","Uniquement les effets observés chez l'animal.","Un effet toujours bénéfique inattendu."],c:0},
+ {q:"Parmi les catégories d'effets indésirables citées, laquelle correspond à une réaction imprévisible liée au patrimoine génétique du patient ?",a:["L'idiosyncrasie.","Les effets toxiques.","Les effets secondaires.","La thésaurismose."],c:0},
+ {q:"Qui, parmi les personnes citées, est habilité à établir une ordonnance selon le cours ?",a:["Les sages-femmes.","Uniquement les pharmaciens.","Uniquement les infirmiers, sans condition.","Uniquement les étudiants en pharmacie."],c:0},
+ {q:"Quels types d'ordonnance sont cités dans le cours ?",a:["Ordonnance simple, sécurisée, bi-zones, et « de médicaments d'exception ».","Uniquement l'ordonnance simple.","Uniquement l'ordonnance électronique.","Uniquement l'ordonnance orale."],c:0},
+ {q:"Selon le cours, pendant combien de temps le pharmacien doit-il conserver la prescription sur le carnet à souches ?",a:["3 ans.","1 an.","10 ans.","6 mois."],c:0},
+ {q:"Quelle est la dernière étape citée dans la chronologie de développement d'un médicament ?",a:["Pharmacovigilance et phase IV.","La sélection moléculaire uniquement.","La recherche préclinique uniquement.","La constitution du dossier d'AMM uniquement, sans suite."],c:0},
+ {q:"Que signifie AMM selon le cours ?",a:["Autorisation de la Mise sur le Marché.","Analyse Médicale du Médicament.","Agence du Médicament et des Maladies.","Autorisation Médicale Ministérielle."],c:0},
+ {q:"Comment le cours définit-il la synergie ?",a:["Observation si deux substances possèdent une activité qualitativement semblable.","Observation si deux substances possèdent une activité qualitativement différente.","Une interaction toujours dangereuse entre deux médicaments.","Un phénomène qui ne concerne que les excipients."],c:0},
+ {q:"Parmi les facteurs influençant les interactions médicamenteuses cités, lequel est mentionné ?",a:["La chronologie d'administration.","La couleur du comprimé.","Le prix du médicament.","La nationalité du patient."],c:0},
+ {q:"Comment le cours définit-il la biodisponibilité ?",a:["Le pourcentage du médicament donné qui arrive réellement dans l'espace vasculaire.","Le temps nécessaire à la fabrication du médicament.","Le coût du médicament sur le marché.","La quantité d'excipients contenue dans le médicament."],c:0}
+]
+};
 
 const AVATARS=["🐱","🐶","🦊","🐻","🐼","🐨","🦁","🐯","🐸","🐵","🦄","🐙","🐢","🦉","🐧","🦋","🐺","🐹"];
 let ws=null, roomId=null, role=null, clientId=crypto.randomUUID(), hostId=null;
@@ -246,7 +337,9 @@ function shuffleQuestionAnswers(q){
 
 function startQuiz(){
  if(role!=="host")return;
- localQuestions=shuffleArr([...QUESTIONS]).slice(0,10).map(shuffleQuestionAnswers);
+ const subject=$("subjectSelect").value;
+ const bank=QUESTION_BANKS[subject]||QUESTION_BANKS.biophysique;
+ localQuestions=shuffleArr([...bank]).slice(0,10).map(shuffleQuestionAnswers);
  send({type:"gameStart",questions:localQuestions,question:localQuestions[0],players});
  showQuestion(localQuestions[0]);show("quiz");currentQuestion=0;startTimer();
 }

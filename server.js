@@ -87,4 +87,4 @@ function sendPlayerList(room){
   const players={};for(const p of room.players.values())players[p.id]={id:p.id,name:p.name,avatar:p.avatar,score:p.score};
   broadcast(room,{type:"playerList",players});
 }
-server.listen(PORT,()=>console.log(`Biophysique Quiz: http://localhost:${PORT}`));
+server.listen(PORT,()=>console.log(`PACES QUIZ: http://localhost:${PORT}`));
