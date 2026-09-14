@@ -56,7 +56,7 @@ ol{padding-left:22px}.small{font-size:12px}
 </head>
 <body>
 <div class="app">
-  <div class="top"><div class="brand">⚡ Biophysique Quiz</div><div class="badge">WebRTC • local / Internet</div></div>
+  <div class="top"><div class="brand">⚡ Biophysique Quiz</div><div class="badge">Multijoueur en ligne</div></div>
 
   <section id="profile" class="card">
     <h1>Ton profil</h1>
@@ -85,7 +85,7 @@ ol{padding-left:22px}.small{font-size:12px}
         <br><br><button class="good" onclick="joinRoom()">Rejoindre</button>
       </div>
     </div>
-    <div class="notice small">Pour plusieurs téléphones sur un réseau local, ouvre cette page depuis l'adresse IP du PC qui exécute le serveur Node.js. Pour Internet, utilise un serveur de signalisation accessible publiquement et HTTPS/WSS.</div>
+    <div class="notice small">Fonctionne entre amis sur des réseaux différents (Wi-Fi, 4G/5G) sans configuration supplémentaire.</div>
   </section>
 
   <section id="room" class="card hidden">
@@ -198,18 +198,23 @@ function connect(){
    const m=JSON.parse(e.data);
    if(m.type==="roomCreated"){roomId=m.room;hostId=clientId;showRoom(m.room);updatePlayers()}
    if(m.type==="roomJoined"){showRoom(m.room);hostId=m.host;updatePlayers()}
-   if(m.type==="peerList"){m.peers.forEach(id=>createPeer(id,true));}
-   if(m.type==="peerJoined"){createPeer(m.id,false);}
-   if(m.type==="signal"){await handleSignal(m.from,m.data);}
    if(m.type==="playerList"){players=m.players;updatePlayers()}
    if(m.type==="gameStart"){localQuestions=m.questions;currentQuestion=0;showQuestion(m.question);show("quiz");}
-   if(m.type==="answerResult"){renderAnswerResult(m)}
+   if(m.type==="answer"&&role==="host"){
+     const q=localQuestions[currentQuestion],ok=m.index===q.c;
+     scoreAnswer(m.id,m.index);
+     answeredThisQuestion.add(m.id);
+     send({type:"answerResult",to:m.id,correct:ok,points:ok?100:0});
+     broadcastScores();
+     checkAllAnswered();
+   }
+   if(m.type==="answerResult"&&role==="player"){renderAnswerResult(m)}
    if(m.type==="nextQuestion"){currentQuestion=m.index;showQuestion(m.question)}
    if(m.type==="gameEnd"){showResults(m.players)}
    if(m.type==="error"){setState("🔴 "+m.message);}
    if(m.type==="hostLeft"){
      clearInterval(timerInterval);
-     try{ws?.close();Object.values(peerConns).forEach(p=>p.pc?.close())}catch{}
+     try{ws?.close()}catch{}
      alert("👑 L'hôte a quitté la partie. La partie est terminée.");
      location.reload();
    }
@@ -232,36 +237,6 @@ function updatePlayers(){
  Object.values(players).forEach(p=>{const d=document.createElement("div");d.className="player";d.innerHTML=`<span>${p.avatar||"🎮"} ${p.name||"Joueur"} ${p.id===hostId?"👑":""}</span><b>${p.score||0}</b>`;el.appendChild(d)});
  if(!Object.keys(players).length && role==="host")el.innerHTML='<div class="muted">En attente de joueurs…</div>';
 }
-
-function makePC(peer){
- const x=new RTCPeerConnection({iceServers:[{urls:"stun:stun.l.google.com:19302"}]});
- x.onicecandidate=e=>{if(e.candidate)send({type:"signal",to:peer,data:{candidate:e.candidate}})};
- x.ondatachannel=e=>setupData(e.channel,peer);
- return x;
-}
-let peerConns={};
-function createPeer(peer,initiator){
- if(peerConns[peer])return;
- const conn=makePC(peer);
- peerConns[peer]={pc:conn,channel:null};
- if(initiator){const ch=conn.createDataChannel("quiz");setupData(ch,peer);conn.createOffer().then(o=>conn.setLocalDescription(o)).then(()=>send({type:"signal",to:peer,data:{description:conn.localDescription}}))}
-}
-async function handleSignal(from,data){
- if(!peerConns[from])createPeer(from,false);
- const conn=peerConns[from].pc;
- if(data.description){
-   await conn.setRemoteDescription(data.description);
-   if(data.description.type==="offer"){const ans=await conn.createAnswer();await conn.setLocalDescription(ans);send({type:"signal",to:from,data:{description:conn.localDescription}})}
- }else if(data.candidate)await conn.addIceCandidate(data.candidate);
-}
-function setupData(ch,peer){
- ch.onopen=()=>setState("🟢 WebRTC direct actif");
- ch.onclose=()=>setState("🟠 Connexion WebRTC fermée");
- ch.onmessage=e=>handleP2P(JSON.parse(e.data),peer);
- peerConns[peer].channel=ch;
-}
-function p2pTo(peer,o){const ch=peerConns[peer]?.channel;if(ch?.readyState==="open")ch.send(JSON.stringify(o))}
-function p2pToHost(o){const hostPeerId=Object.keys(peerConns)[0];if(hostPeerId)p2pTo(hostPeerId,o)}
 
 function shuffleArr(arr){return arr.map(v=>[Math.random(),v]).sort((a,b)=>a[0]-b[0]).map(v=>v[1])}
 function shuffleQuestionAnswers(q){
@@ -292,7 +267,7 @@ function answer(i){
    renderAnswerResult({correct:i===localQuestions[currentQuestion].c,points:i===localQuestions[currentQuestion].c?100:0});
    broadcastScores();
    checkAllAnswered();
- } else p2pToHost({type:"answer",id:clientId,index:i});
+ } else send({type:"answer",index:i});
 }
 function startTimer(){
  deadline=Date.now()+15000;clearInterval(timerInterval);
@@ -364,17 +339,7 @@ function renderConfetti(){
    el.appendChild(s);
  }
 }
-function handleP2P(m,peer){
- if(role==="host"&&m.type==="answer"){
-   const q=localQuestions[currentQuestion],ok=m.index===q.c;scoreAnswer(m.id,m.index);
-   answeredThisQuestion.add(m.id);
-   p2pTo(peer,{type:"answerResult",correct:ok,points:ok?100:0});
-   broadcastScores();
-   checkAllAnswered();
- }
- if(role==="player"&&m.type==="answerResult")renderAnswerResult(m);
-}
-function leaveRoom(){try{ws?.close();Object.values(peerConns).forEach(p=>p.pc?.close())}catch{}location.reload()}
+function leaveRoom(){try{ws?.close()}catch{}location.reload()}
 </script>
 </body>
 </html>

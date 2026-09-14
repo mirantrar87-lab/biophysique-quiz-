@@ -43,13 +43,16 @@ wss.on("connection",ws=>{
       room.players.set(m.clientId,{id:m.clientId,name:m.name||"Joueur",avatar:m.avatar||"🎮",score:0,ws});
       ws.room=m.room;ws.id=m.clientId;
       send(ws,{type:"roomJoined",room:m.room,host:room.host});
-      send(room.players.get(room.host).ws,{type:"peerJoined",id:m.clientId});
-      send(ws,{type:"peerList",peers:[room.host]});
       sendPlayerList(room);
     }
-    else if(m.type==="signal"){
+    else if(m.type==="answer"){
       const room=rooms.get(ws.room); if(!room)return;
-      const target=room.players.get(m.to); if(target)send(target.ws,{type:"signal",from:ws.id,data:m.data});
+      const hostP=room.players.get(room.host); if(!hostP)return;
+      send(hostP.ws,{type:"answer",id:ws.id,index:m.index});
+    }
+    else if(m.type==="answerResult"){
+      const room=rooms.get(ws.room); if(!room||room.host!==ws.id)return;
+      const target=room.players.get(m.to); if(target)send(target.ws,{type:"answerResult",correct:m.correct,points:m.points});
     }
     else if(m.type==="gameStart"){
       const room=rooms.get(ws.room); if(!room||room.host!==ws.id)return;
@@ -81,7 +84,7 @@ wss.on("connection",ws=>{
   });
 });
 function sendPlayerList(room){
-  const players={};for(const p of room.players.values())players[p.id]={id:p.id,name:p.name,score:p.score};
+  const players={};for(const p of room.players.values())players[p.id]={id:p.id,name:p.name,avatar:p.avatar,score:p.score};
   broadcast(room,{type:"playerList",players});
 }
 server.listen(PORT,()=>console.log(`Biophysique Quiz: http://localhost:${PORT}`));
